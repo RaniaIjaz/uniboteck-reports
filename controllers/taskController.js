@@ -457,35 +457,44 @@ export const getDepartmentTasks = async (req, res) => {
       dateFilter = { gte: startOfDay, lte: endOfDay };
     }
 
-    const tasks = await prisma.task.findMany({
-      where: {
-        taskDate: dateFilter,
-        OR: [
-          { departmentId: deptId },
-          { currentDepartmentId: deptId },
-          {
-            transfers: {
-              some: {
-                OR: [{ fromDepartmentId: deptId }, { toDepartmentId: deptId }],
-              },
-            },
-          },
-        ],
-      },
-      include: {
-        // assignedTo: true,
-        // assignedToManager: {
-        //   select: { id: true, name: true, departmentId: true },
-        // },
-        createdBy: true,
-        department: true,
-        transfers: {
-          include: { fromDepartment: true, toDepartment: true },
-          orderBy: { transferredAt: "asc" },
+    const deptCondition = {
+  OR: [
+    { departmentId: deptId },
+    { currentDepartmentId: deptId },
+    {
+      transfers: {
+        some: {
+          OR: [{ fromDepartmentId: deptId }, { toDepartmentId: deptId }],
         },
       },
-      orderBy: { createdAt: "desc" },
-    });
+    },
+  ],
+};
+
+const dateCondition =
+  from || to
+    ? { taskDate: dateFilter }                                   // exact range — no carryover
+    : {
+        OR: [
+          { taskDate: dateFilter },                              // today's tasks
+          { status: { in: ["PENDING", "TRANSFERRED"] } },       // carryover from prior days
+        ],
+      };
+
+const tasks = await prisma.task.findMany({
+  where: {
+    AND: [deptCondition, dateCondition],
+  },
+  include: {
+    createdBy: true,
+    department: true,
+    transfers: {
+      include: { fromDepartment: true, toDepartment: true },
+      orderBy: { transferredAt: "asc" },
+    },
+  },
+  orderBy: { createdAt: "desc" },
+});
 
     const formattedTasks = tasks.map((task) => {
       let displayStatus = task.status;
@@ -506,12 +515,7 @@ export const getDepartmentTasks = async (req, res) => {
           displayStatus = `Transferred from ${receivedTransfer.fromDepartment.name}`;
         }
       }
-      // const assignee = task.assignedTo
-      //   ? { ...task.assignedTo, role: "Employee" }
-      //   : task.assignedToManager
-      //     ? { ...task.assignedToManager, role: "Manager" }
-      //     : null;
-
+   
       return {
         ...task,
         displayStatus,
@@ -528,48 +532,38 @@ export const getDepartmentTasks = async (req, res) => {
         .length,
     };
 
-    // const memberMap = {};
-    // formattedTasks.forEach((task) => {
-    //   const person = task.assignedTo
-    //     ? { ...task.assignedTo, role: "Employee" }
-    //     : task.assignedToManager
-    //       ? { ...task.assignedToManager, role: "Manager" }
-    //       : null;
 
-    //   if (!person) return;
-    //   const personDeptId =
-    //     person.role === "Manager" ? person.departmentId : task.departmentId;
 
-    //   if (personDeptId !== deptId) return;
+    // Add this BEFORE the memberMap loop:
+const [deptEmployees, deptManagers] = await Promise.all([
+  prisma.employee.findMany({
+    where: { departmentId: deptId },
+    select: { id: true },
+  }),
+  prisma.manager.findMany({
+    where: { departmentId: deptId },
+    select: { id: true },
+  }),
+]);
 
-    //   const key = `${person.role}-${person.id}`;
+const deptMemberKeys = new Set([
+  ...deptEmployees.map((e) => `employee-${e.id}`),   // lowercase
+  ...deptManagers.map((m) => `manager-${m.id}`),     // lowercase
+]);
 
-    //   if (!memberMap[key]) {
-    //     memberMap[key] = {
-    //       id: person.id,
-    //       key,
-    //       name: person.name,
-    //       role: person.role,
-    //       total: 0,
-    //       completed: 0,
-    //       pending: 0,
-    //       transferred: 0,
-    //     };
-    //   }
-    //   memberMap[key].total += 1;
-    //   if (task.status === "COMPLETE") memberMap[key].completed += 1;
-    //   if (task.status === "PENDING") memberMap[key].pending += 1;
-    //   if (task.status === "TRANSFERRED") memberMap[key].completed += 1;
-    // });
+console.log("deptMemberKeys:", [...deptMemberKeys]);
+console.log("sample assignees:", formattedTasks[0]?.assignees);
 
-    // const memberStats = Object.values(memberMap);
-
-    const memberMap = {};
+// Then in the memberMap loop, add one guard at the top:
+const memberMap = {};
 formattedTasks.forEach((task) => {
   const assignees = Array.isArray(task.assignees) ? task.assignees : [];
-  
+
   assignees.forEach((person) => {
-    const key = `${person.role}-${person.id}`;
+    // const key = `${person.role}-${person.id}`;
+     const key = `${person.role?.toLowerCase()}-${person.id}`; 
+
+    if (!deptMemberKeys.has(key)) return;   // ← skip if not in this department
 
     if (!memberMap[key]) {
       memberMap[key] = {
@@ -590,6 +584,33 @@ formattedTasks.forEach((task) => {
   });
 });
 const memberStats = Object.values(memberMap);
+
+//     const memberMap = {};
+// formattedTasks.forEach((task) => {
+//   const assignees = Array.isArray(task.assignees) ? task.assignees : [];
+  
+//   assignees.forEach((person) => {
+//     const key = `${person.role}-${person.id}`;
+
+//     if (!memberMap[key]) {
+//       memberMap[key] = {
+//         id: person.id,
+//         key,
+//         name: person.name,
+//         role: person.role,
+//         total: 0,
+//         completed: 0,
+//         pending: 0,
+//         transferred: 0,
+//       };
+//     }
+//     memberMap[key].total += 1;
+//     if (task.status === "COMPLETE") memberMap[key].completed += 1;
+//     if (task.status === "PENDING") memberMap[key].pending += 1;
+//     if (task.status === "TRANSFERRED") memberMap[key].transferred += 1;
+//   });
+// });
+// const memberStats = Object.values(memberMap);
 
     res.json({
       counts,

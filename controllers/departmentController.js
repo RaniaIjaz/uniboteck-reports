@@ -27,7 +27,6 @@ export const createDepartment = async (req, res) => {
   }
 };
 
-
 export const getDepartments = async (req, res) => {
   try {
     const now = new Date();
@@ -54,22 +53,39 @@ export const getDepartments = async (req, res) => {
       departments.map(async (dept) => {
         const tasks = await prisma.task.findMany({
           where: {
-            taskDate: { gte: startOfDay, lte: endOfDay },
-            OR: [
-              { departmentId: dept.id },
-              { currentDepartmentId: dept.id },
-              {
-                transfers: {
-                  some: {
-                    OR: [
-                      { fromDepartmentId: dept.id },
-                      { toDepartmentId: dept.id }
-                    ]
-                  }
-                }
-              }
-            ]
-          },
+  AND: [
+    {
+      OR: [
+        { departmentId: dept.id },
+        { currentDepartmentId: dept.id },
+        { transfers: { some: { OR: [{ fromDepartmentId: dept.id }, { toDepartmentId: dept.id }] } } },
+      ],
+    },
+    {
+      OR: [
+        { taskDate: { gte: startOfDay, lte: endOfDay } },
+        { status: { in: ["PENDING", "TRANSFERRED"] } },
+      ],
+    },
+  ],
+},
+          // where: {
+          //   taskDate: { gte: startOfDay, lte: endOfDay },
+          //   OR: [
+          //     { departmentId: dept.id },
+          //     { currentDepartmentId: dept.id },
+          //     {
+          //       transfers: {
+          //         some: {
+          //           OR: [
+          //             { fromDepartmentId: dept.id },
+          //             { toDepartmentId: dept.id }
+          //           ]
+          //         }
+          //       }
+          //     }
+          //   ]
+          // },
           select: {
             id: true,
             status: true
@@ -233,23 +249,41 @@ export const getAllDepartmentTasksGrouped = async (req, res) => {
     const result = await Promise.all(
       departments.map(async (dept) => {
         const tasks = await prisma.task.findMany({
+
           where: {
-            taskDate: { gte: startOfDay, lte: endOfDay },
-            OR: [
-              { departmentId: dept.id },
-              { currentDepartmentId: dept.id },
-              {
-                transfers: {
-                  some: {
-                    OR: [
-                      { fromDepartmentId: dept.id },
-                      { toDepartmentId: dept.id },
-                    ],
-                  },
-                },
-              },
-            ],
-          },
+  AND: [
+    {
+      OR: [
+        { departmentId: dept.id },
+        { currentDepartmentId: dept.id },
+        { transfers: { some: { OR: [{ fromDepartmentId: dept.id }, { toDepartmentId: dept.id }] } } },
+      ],
+    },
+    {
+      OR: [
+        { taskDate: { gte: startOfDay, lte: endOfDay } },          // today's tasks
+        { status: { in: ["PENDING", "TRANSFERRED"] } },            // carryover from any prior day
+      ],
+    },
+  ],
+},
+          // where: {
+          //   taskDate: { gte: startOfDay, lte: endOfDay },
+          //   OR: [
+          //     { departmentId: dept.id },
+          //     { currentDepartmentId: dept.id },
+          //     {
+          //       transfers: {
+          //         some: {
+          //           OR: [
+          //             { fromDepartmentId: dept.id },
+          //             { toDepartmentId: dept.id },
+          //           ],
+          //         },
+          //       },
+          //     },
+          //   ],
+          // },
           select: {
             id: true,
             title: true,
