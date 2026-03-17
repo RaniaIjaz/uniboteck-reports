@@ -547,14 +547,11 @@ const [deptEmployees, deptManagers] = await Promise.all([
 ]);
 
 const deptMemberKeys = new Set([
-  ...deptEmployees.map((e) => `employee-${e.id}`),   // lowercase
-  ...deptManagers.map((m) => `manager-${m.id}`),     // lowercase
+  ...deptEmployees.map((e) => `employee-${e.id}`),
+  ...deptManagers.map((m) => `manager-${m.id}`),   
 ]);
 
-console.log("deptMemberKeys:", [...deptMemberKeys]);
-console.log("sample assignees:", formattedTasks[0]?.assignees);
 
-// Then in the memberMap loop, add one guard at the top:
 const memberMap = {};
 formattedTasks.forEach((task) => {
   const assignees = Array.isArray(task.assignees) ? task.assignees : [];
@@ -563,7 +560,7 @@ formattedTasks.forEach((task) => {
     // const key = `${person.role}-${person.id}`;
      const key = `${person.role?.toLowerCase()}-${person.id}`; 
 
-    if (!deptMemberKeys.has(key)) return;   // ← skip if not in this department
+    if (!deptMemberKeys.has(key)) return; 
 
     if (!memberMap[key]) {
       memberMap[key] = {
