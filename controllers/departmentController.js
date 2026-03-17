@@ -48,7 +48,6 @@ export const getDepartments = async (req, res) => {
       }
     });
 
-    // Fetch tasks separately per department to avoid duplicates
     const formattedDepartments = await Promise.all(
       departments.map(async (dept) => {
         const tasks = await prisma.task.findMany({
@@ -69,29 +68,36 @@ export const getDepartments = async (req, res) => {
     },
   ],
 },
-          // where: {
-          //   taskDate: { gte: startOfDay, lte: endOfDay },
-          //   OR: [
-          //     { departmentId: dept.id },
-          //     { currentDepartmentId: dept.id },
-          //     {
-          //       transfers: {
-          //         some: {
-          //           OR: [
-          //             { fromDepartmentId: dept.id },
-          //             { toDepartmentId: dept.id }
-          //           ]
-          //         }
-          //       }
-          //     }
-          //   ]
-          // },
           select: {
             id: true,
             status: true
           },
-          distinct: ['id'] // ensure no duplicate task rows
+          distinct: ['id'] 
         });
+
+        const todayTasks = await prisma.task.findMany({
+      where: {
+        AND: [
+          {
+            OR: [
+              { departmentId: dept.id },
+              { currentDepartmentId: dept.id },
+              { transfers: { some: { OR: [{ fromDepartmentId: dept.id }, { toDepartmentId: dept.id }] } } },
+            ],
+          },
+          { taskDate: { gte: startOfDay, lte: endOfDay } },
+        ],
+      },
+      select: { id: true },
+      distinct: ["id"],
+    });
+
+//     console.log("startOfDay:", startOfDay);
+// console.log("endOfDay:", endOfDay);
+// console.log("todayTasks for", dept.name, ":", todayTasks.length);
+// // also log a sample task date
+// const sampleTask = await prisma.task.findFirst({ where: { departmentId: dept.id }, select: { taskDate: true } });
+// console.log("sample taskDate:", sampleTask?.taskDate);
 
         const total = tasks.length;
         const pending = tasks.filter(t => t.status === "PENDING").length;
@@ -102,6 +108,7 @@ export const getDepartments = async (req, res) => {
           id: dept.id,
           name: dept.name,
           manager: dept.manager,
+              hasTodayTask: todayTasks.length > 0,
           todayTaskStats: {
             total,
             pending,
@@ -261,35 +268,20 @@ export const getAllDepartmentTasksGrouped = async (req, res) => {
     },
     {
       OR: [
-        { taskDate: { gte: startOfDay, lte: endOfDay } },          // today's tasks
-        { status: { in: ["PENDING", "TRANSFERRED"] } },            // carryover from any prior day
+        { taskDate: { gte: startOfDay, lte: endOfDay } },          
+        { status: { in: ["PENDING", "TRANSFERRED"] } },     
       ],
     },
   ],
 },
-          // where: {
-          //   taskDate: { gte: startOfDay, lte: endOfDay },
-          //   OR: [
-          //     { departmentId: dept.id },
-          //     { currentDepartmentId: dept.id },
-          //     {
-          //       transfers: {
-          //         some: {
-          //           OR: [
-          //             { fromDepartmentId: dept.id },
-          //             { toDepartmentId: dept.id },
-          //           ],
-          //         },
-          //       },
-          //     },
-          //   ],
-          // },
+         
           select: {
             id: true,
             title: true,
             taskDate: true,
             status: true,
             pendingReason: true,
+            comment:true,
             // assignedTo: {
             //   select: { id: true, name: true },
             // },
@@ -301,6 +293,8 @@ export const getAllDepartmentTasksGrouped = async (req, res) => {
               include: { fromDepartment: true, toDepartment: true },
               orderBy: { transferredAt: "asc" },
             },
+            createdAt:true,
+            updatedAt:true
           },
           distinct: ["id"],
           orderBy: { createdAt: "desc" },
@@ -331,6 +325,9 @@ export const getAllDepartmentTasksGrouped = async (req, res) => {
             displayStatus,
             pendingReason: task.pendingReason,
             assignees: task.assignees || [],
+            comment:task.comment,
+            createdAt:task.createdAt,
+            updatedAt:task.updatedAt
           };
         });
 
