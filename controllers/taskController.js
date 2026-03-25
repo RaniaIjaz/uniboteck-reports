@@ -669,14 +669,33 @@ export const getAllDepartmentTasks = async (req, res) => {
       },
     });
 
-    // Sort so today's tasks come first
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const sortedTasks = tasks.sort((a, b) => {
-      return new Date(b.updatedAt) - new Date(a.updatedAt);
+    // const sortedTasks = tasks.sort((a, b) => {
+    //   return new Date(b.updatedAt) - new Date(a.updatedAt);
      
-    });
+    // });
+
+    const sortedTasks = tasks.sort((a, b) => {
+  // Priority for status
+  const priority = {
+    PENDING: 1,
+    TRANSFERRED: 1,
+    COMPLETE: 2,
+  };
+
+  const aPriority = priority[a.status] || 3;
+  const bPriority = priority[b.status] || 3;
+
+  // First sort by priority
+  if (aPriority !== bPriority) {
+    return aPriority - bPriority;
+  }
+
+  // Then sort by date (latest first)
+  return new Date(b.updatedAt) - new Date(a.updatedAt);
+});
 
     // Pagination
     const paginatedTasks = sortedTasks.slice(skip, skip + limit);
