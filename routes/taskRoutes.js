@@ -11,6 +11,7 @@ import {
   getAllDepartmentTasks,
   getManagerTasks,
   getOtherDepartments,
+  getAlertTasks,
   
     transferTask,
     updateTask,
@@ -30,6 +31,7 @@ router.post("/", authenticate, createTask);
 router.get("/all", authenticate, getManagerTasks);
 router.get("/department-all/:departmentId",getDepartmentTasks);
 router.get("/department/",authenticate,getAllDepartmentTasks)
+router.get("/alerts", authenticate, getAlertTasks);
 router.get("/other-departments",authenticate,getOtherDepartments)
 // router.get("/department/:departmentId", getDepartmentMemberTasks);
 // router.put("/:id/status", authenticate, updateTaskStatus);

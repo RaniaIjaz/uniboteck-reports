@@ -659,10 +659,7 @@ export const getAllDepartmentTasks = async (req, res) => {
         ],
       },
       include: {
-        // assignedTo: true,
-        // assignedToManager: {
-        //   select: { id: true, name: true, departmentId: true },
-        // },
+       
         createdBy: true,
         department: true,
         transfers: {
@@ -678,16 +675,7 @@ export const getAllDepartmentTasks = async (req, res) => {
 
     const sortedTasks = tasks.sort((a, b) => {
       return new Date(b.updatedAt) - new Date(a.updatedAt);
-      // const aDate = new Date(a.taskDate);
-      // const bDate = new Date(b.taskDate);
-
-      // const aIsToday = aDate >= today;
-      // const bIsToday = bDate >= today;
-
-      // if (aIsToday && !bIsToday) return -1;
-      // if (!aIsToday && bIsToday) return 1;
-
-      // return bDate - aDate;
+     
     });
 
     // Pagination
@@ -713,12 +701,6 @@ export const getAllDepartmentTasks = async (req, res) => {
           displayStatus = `Transferred from ${receivedTransfer.fromDepartment.name}`;
         }
       }
-
-      // const assignee = task.assignedTo
-      //   ? { ...task.assignedTo, role: "Employee" }
-      //   : task.assignedToManager
-      //     ? { ...task.assignedToManager, role: "Manager" }
-      //     : null;
 
       return {
         ...task,
@@ -754,6 +736,94 @@ export const getAllDepartmentTasks = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const getAlertTasks = async (req, res) => {
+  try {
+    const managerId = req.user.id;
+
+    const manager = await prisma.manager.findUnique({
+      where: { id: managerId },
+      include: { department: true },
+    });
+
+    if (!manager) {
+      return res.status(404).json({ message: "Manager not found" });
+    }
+
+    const deptId = manager.departmentId;
+
+    const department = await prisma.department.findUnique({
+      where: { id: deptId },
+      select: { name: true },
+    });
+
+    const tasks = await prisma.task.findMany({
+      where: {
+        status: { in: ["PENDING", "TRANSFERRED"] },
+        OR: [
+          { departmentId: deptId },
+          { currentDepartmentId: deptId },
+          {
+            transfers: {
+              some: {
+                OR: [{ fromDepartmentId: deptId }, { toDepartmentId: deptId }],
+              },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        pendingReason: true,
+        assignees: true,
+        transfers: {
+          select: {
+            fromDepartmentId: true,
+            toDepartmentId: true,
+            fromDepartment: { select: { name: true } },
+            toDepartment: { select: { name: true } },
+          },
+          orderBy: { transferredAt: "asc" },
+        },
+      },
+    });
+
+    const formattedTasks = tasks.map((task) => {
+      let displayStatus = task.status;
+
+      if (task.status === "TRANSFERRED" && task.transfers.length > 0) {
+        const sentTransfer = task.transfers.find(
+          (t) => t.fromDepartmentId === deptId
+        );
+        const receivedTransfer = task.transfers.findLast(
+          (t) => t.toDepartmentId === deptId
+        );
+
+        if (sentTransfer) {
+          displayStatus = `Transferred to ${sentTransfer.toDepartment.name}`;
+        } else if (receivedTransfer) {
+          displayStatus = `Transferred from ${receivedTransfer.fromDepartment.name}`;
+        }
+      }
+
+      return {
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        displayStatus,
+        pendingReason: task.pendingReason ?? null,
+        assignees: task.assignees || [],
+      };
+    });
+
+    res.json({ tasks: formattedTasks });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 
 export const getManagerTasks = async (req, res) => {
   try {
