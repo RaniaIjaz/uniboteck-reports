@@ -473,11 +473,11 @@ export const getDepartmentTasks = async (req, res) => {
 
 const dateCondition =
   from || to
-    ? { taskDate: dateFilter }                                   // exact range — no carryover
+    ? { taskDate: dateFilter }                                  
     : {
         OR: [
-          { taskDate: dateFilter },                              // today's tasks
-          { status: { in: ["PENDING", "TRANSFERRED"] } },       // carryover from prior days
+          { taskDate: dateFilter },                             
+          { status: { in: ["PENDING", "TRANSFERRED"] } },       
         ],
       };
 
