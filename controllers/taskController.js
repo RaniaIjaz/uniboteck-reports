@@ -528,6 +528,7 @@ const tasks = await prisma.task.findMany({
       total: formattedTasks.length,
       pending: formattedTasks.filter((t) => t.status === "PENDING").length,
       complete: formattedTasks.filter((t) => t.status === "COMPLETE").length,
+      failed: formattedTasks.filter((t) => t.status === "FAILED").length,
       transferred: formattedTasks.filter((t) => t.status === "TRANSFERRED")
         .length,
     };
@@ -570,44 +571,19 @@ formattedTasks.forEach((task) => {
         role: person.role,
         total: 0,
         completed: 0,
+        failed:0,
         pending: 0,
         transferred: 0,
       };
     }
     memberMap[key].total += 1;
     if (task.status === "COMPLETE") memberMap[key].completed += 1;
+    if (task.status === "FAILED") memberMap[key].failed += 1;
     if (task.status === "PENDING") memberMap[key].pending += 1;
     if (task.status === "TRANSFERRED") memberMap[key].transferred += 1;
   });
 });
 const memberStats = Object.values(memberMap);
-
-//     const memberMap = {};
-// formattedTasks.forEach((task) => {
-//   const assignees = Array.isArray(task.assignees) ? task.assignees : [];
-  
-//   assignees.forEach((person) => {
-//     const key = `${person.role}-${person.id}`;
-
-//     if (!memberMap[key]) {
-//       memberMap[key] = {
-//         id: person.id,
-//         key,
-//         name: person.name,
-//         role: person.role,
-//         total: 0,
-//         completed: 0,
-//         pending: 0,
-//         transferred: 0,
-//       };
-//     }
-//     memberMap[key].total += 1;
-//     if (task.status === "COMPLETE") memberMap[key].completed += 1;
-//     if (task.status === "PENDING") memberMap[key].pending += 1;
-//     if (task.status === "TRANSFERRED") memberMap[key].transferred += 1;
-//   });
-// });
-// const memberStats = Object.values(memberMap);
 
     res.json({
       counts,
@@ -683,6 +659,7 @@ export const getAllDepartmentTasks = async (req, res) => {
     PENDING: 1,
     TRANSFERRED: 1,
     COMPLETE: 2,
+    FAILED:2,
   };
 
   const aPriority = priority[a.status] || 3;
@@ -735,6 +712,7 @@ export const getAllDepartmentTasks = async (req, res) => {
       total: tasks.length,
       pending: tasks.filter((t) => t.status === "PENDING").length,
       complete: tasks.filter((t) => t.status === "COMPLETE").length,
+      failed: tasks.filter((t) => t.status === "FAILED").length,
       transferred: tasks.filter((t) => t.status === "TRANSFERRED").length,
     };
 
@@ -1046,6 +1024,7 @@ export const getDepartmentMemberTasks = async (req, res) => {
       total: formattedTasks.length,
       pending: formattedTasks.filter((t) => t.status === "PENDING").length,
       complete: formattedTasks.filter((t) => t.status === "COMPLETE").length,
+      failed: formattedTasks.filter((t) => t.status === "FAILED").length,
       transferred: formattedTasks.filter((t) => t.status === "TRANSFERRED")
         .length,
     };
@@ -1066,6 +1045,7 @@ export const getDepartmentMemberTasks = async (req, res) => {
           total: 0,
           pending: 0,
           complete: 0,
+          failed:0,
           transferred: 0,
         };
       }
@@ -1073,6 +1053,7 @@ export const getDepartmentMemberTasks = async (req, res) => {
       memberStatsMap[key].total++;
       if (task.status === "PENDING") memberStatsMap[key].pending++;
       if (task.status === "COMPLETE") memberStatsMap[key].complete++;
+         if (task.status === "FAILED") memberStatsMap[key].failed++;
       if (task.status === "TRANSFERRED") memberStatsMap[key].transferred++;
     });
 

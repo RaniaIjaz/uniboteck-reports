@@ -102,6 +102,7 @@ export const getDepartments = async (req, res) => {
         const total = tasks.length;
         const pending = tasks.filter(t => t.status === "PENDING").length;
         const complete = tasks.filter(t => t.status === "COMPLETE").length;
+        const failed = tasks.filter(t => t.status === "FAILED").length;
         const transferred = tasks.filter(t => t.status === "TRANSFERRED").length;
 
         return {
@@ -113,6 +114,7 @@ export const getDepartments = async (req, res) => {
             total,
             pending,
             complete,
+            failed,
             transferred
           }
         };
@@ -338,6 +340,7 @@ export const getAllDepartmentTasksGrouped = async (req, res) => {
             total: formattedTasks.length,
             pending: formattedTasks.filter((t) => t.status === "PENDING").length,
             complete: formattedTasks.filter((t) => t.status === "COMPLETE").length,
+            failed: formattedTasks.filter((t) => t.status === "FAILED").length,
             transferred: formattedTasks.filter((t) => t.status === "TRANSFERRED").length,
           },
           tasks: formattedTasks,

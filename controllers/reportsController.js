@@ -37,6 +37,7 @@ export const getDepartmentReport = async (req, res) => {
     total: tasks.length,
     pending: tasks.filter(t => t.status === "PENDING").length,
     complete: tasks.filter(t => t.status === "COMPLETE").length,
+    failed: tasks.filter(t => t.status === "FAILED").length,
     transferred: tasks.filter(t => t.status === "TRANSFERRED").length
   };
 
@@ -64,6 +65,7 @@ export const getCumulativeReport = async (req, res) => {
     total: tasks.length,
     pending: tasks.filter(t => t.status === "PENDING").length,
     complete: tasks.filter(t => t.status === "COMPLETE").length,
+    failed: tasks.filter(t => t.status === "FAILED").length,
     transferred: tasks.filter(t => t.status === "TRANSFERRED").length
   };
 

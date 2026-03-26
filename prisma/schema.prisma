@@ -16,6 +16,7 @@ datasource db {
 enum TaskStatus {
   PENDING
   COMPLETE
+  FAILED
   TRANSFERRED
 }
 
